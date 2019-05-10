@@ -1,8 +1,7 @@
 class Stack {
-	this.head = null;
-	this.size = 0;
-	
 	constructor(list) {
+		this.head = null;
+		this.size = 0;
 		if (list != undefined) {
 			for (let i in list) {
 				this.push(i);
