@@ -1,0 +1,84 @@
+<html>
+<head>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.13.1/build/styles/default.min.css">
+<script src="parser.js">
+</script>
+<script src="new_parser.js">
+</script>
+</head>
+<body>
+<script src="http://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.13.1/build/highlight.min.js"></script>
+<pre>
+Hi,
+
+Welcome to try out my shabby XText parser.
+
+Here's some syntax for this shabby parser:
+
+Hyper link:
+
+[a:link]text or something else[/a]
+
+for example:
+
+[a:www.google.com]Go to google[/a]
+
+or
+
+[a:www.google.com][img:logo.png]image of google[/img][/a]
+
+real shabby huh?
+
+Image:
+
+[img:image_src.png h:100 w:100]description[/img]
+
+h and w are height and weight attribution of this img tag. You can just specify h or w, it's okay.
+
+for example:
+
+[img:a_pic.jpg]a picture[/img]
+
+[img:b_pic.png h:123]meh[/img]
+
+I know you are thinking "Isn't it just a different way to write HTML?" Yeah, you are right!
+
+Code:
+
+[code:language]
+
+code...
+
+[/code]
+
+language is the programming language you are gonna write or paste.
+
+for example:
+
+[code:c]
+#include<stdlib.h>
+
+int main()
+{
+	printf("Hello world!");
+	return 0;
+}
+[/code]
+
+That's something I think...
+
+So far so good?
+</pre>
+<script>
+function tryToParse(){
+	changeArticleFormat(document.getElementById("in").value,"article")
+}
+</script>
+<textarea id="in">
+</textarea>
+
+<input type="button" value="Parse" onclick="tryToParse()"/>
+<div id="article">
+</div>
+</body>
+</html>
