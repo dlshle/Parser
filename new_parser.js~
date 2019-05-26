@@ -1,0 +1,105 @@
+class Stack {
+	constructor(list) {
+		this.head = null;
+		this.size = 0;
+		if (list != undefined) {
+			for (let i in list) {
+				this.push(i);
+			}
+		}
+	}
+
+	push(val) {
+		if (this.head == null) {
+			this.head = new Node(val, null);
+		} else {
+			let temp = this.head;
+			let node = new Node(val, temp);
+			this.head = node;
+		}
+		this.size ++;
+	}
+	
+	peek() {
+		if (this.size == 0)
+			return null;
+		return this.head.val;
+	}
+
+	pop() {
+		if (this.size == 0)
+			return null;
+		let temp = this.head;
+		this.head = this.head.next;
+		this.size --;
+		return temp.val;
+	}
+	
+	isEmpty() {
+		return size == 0;
+	}
+}
+
+class Node {
+	constructor(val, next) {
+		this.val = val;
+		this.next = next;
+	}
+}
+
+class ParserPack {
+	constructor (pre, text, suf) {
+		this.pre = pre;
+		this.text = text;
+		this.suf = suf;
+		this.children = [];
+	}
+
+	
+}
+
+class Parser {
+	//pre_reg is the str, post_reg is the str, both is for the real regex
+	constructor (original_syntax, destination_syntax) {
+		this.reg = null;
+		this.ori_syntax = destination_syntax;
+		this.dest_syntax = original_syntax;
+		//"close":{"open":open, endPos:ep, function:func}
+		this.syn_pack = {};
+		this.textulizer = 
+	}
+	
+	//endPos = len(close tag len) for knowing where to stop for string slicesing
+	//for pre, it has to be a regex start with proper starting indicator s.a. [ 
+	//and end with an ending indicator s.a. ], same goes to close_syn
+	addPair (open_syn, close_syn, endPos, trans_func) {
+		this.reg = new RegExp(this.reg.source + "|(\\" + open_syn + ")" +  "|(\\" + close_syn + ")", "g");
+		syn_pack.close_syn = {open_syn, endPos:endPos, f:trans_func};
+	}
+
+	parse (o_text) {
+		let d_text = ""; //destination text
+		let stack = new Stack();
+		do {
+			let pos0 = o_text.search(this.reg);
+			o_text = o_text.substring(pos0 + 1);
+			let pos1 = o_text.search(this.reg);
+			if (pos0 == -1 || pos1 == -1)
+				break ;
+	
+		} while (true);
+		return d-text;
+	}
+
+	html_br (text) {
+		return text.replace(/\n/g, "<br>");
+	}
+
+	keep (pre, text, suf) {
+		return text;
+	}
+
+	html_simple (pre, text, suf) {
+		return "<"+pre+">"+text+"</"+suf+">";
+	}
+}
