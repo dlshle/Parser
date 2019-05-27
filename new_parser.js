@@ -52,7 +52,7 @@ class pNode {
 	constructor (type, content, children) {
 		this.children = (children != undefined ? new Stack(children) : new Stack());
 		this.type = type;
-		this.content = content;
+		this.content = content;//for tags, content={o:xx, c:xx}
 	}
 
 	addChildren (children) {
@@ -72,17 +72,39 @@ class pNode {
 	}
 }
 
+//makeRegex makes the regex pack for the mPack
+function makeRegex (mPack) {
+	let regex = "";
+	let openTags = "";
+	let closeTags = "";
+	for (e in mPack) {
+		let s = mPack[e].s;
+		closeTags += (e + "|");
+		openTags += (s + "|");
+		regex += "(" + e + ")|" + "(" + s + ")|";
+	}
+	//to remove the last |s
+	closeTags = closeTags.substring(0, closeTags.length - 1);
+	openTags = openTags.substring(0, openTags.length - 1);
+	regex = regex.substring(0, regex.length - 1);	
+	return {o:new RegExp(openTags, "g"), c:new RegExp(closeTags, "g"), r:new RegExp(regex, "g")};
+}
+
 class Parser {
 	//TODO:
 	//pre_reg is the str, post_reg is the str, both is for the real regex
 	constructor (original, mPack) {
 		this.original = original;
 		this.mPack = mPack;
+		let regexs = makeRegex(mPack);
 		//build regex
-		//this.regex = 
+		this.openTags = regexs.o;
+		this.closeTags = regexs.c;
+		this.regex = regexs.r;
 		//tokenize
-		//this.tokens = tokenize(original)
+		let tokens = tokenize(this.original);
 		//stack algo
+		this.tree = this.buildParsingTree(tokens);
 	}
 
 	//tokenize classifies tokens in the text by checking if a token is a tag or a pure text
@@ -98,15 +120,79 @@ class Parser {
 			text = this.original.substring(last, index);
 			last = index + match.length;
 			if (text.length > 0)
-				tokens.push(text);
-			tokens.push(match);
+				tokens.push({type:"text", content:text});
+			tokens.push({type:(this.isOpenTag(match)?"open":"close"), content:match});
 		}
+		//in the tokens stack, the object is modeled as {type:"text""open"/"close", content:"content"}
 		return tokens;
 	}
 
-	parse (tokens) {
-
+	buildParsingTree (tokens) {
+		let root = new pNode("root", null);
+		while (!tokens.isEmpty()) {
+			let token = tokens.peek();
+			//check if curr is an ending tag
+			if (token.type === "close") {
+				root.addChild(this.makeTagNode(tokens));
+			} else if (token.type === "text") {
+				root.addChild(new pNode("text", token.content));
+			} else {
+				// shouldn't have an unclosed open tag here alone
+				console.log("ERROR: unclosed tag spotted!\nThis tag will be regarded as a text.");
+				root.addChild(new pNode("text", token.content));
+			}
+		}
 	}
+
+	//make a pNode on the closed tag(top of stack)
+	makeTagNode (tokens) {
+		let token = tokens.pop();
+		let recursive = this.mPack[token].r;
+		let target = this.mPack[token].s;
+		let root = new pNode("tag", {o:null, c:token.content});
+		while (!tokens.isEmpty()) {
+			let curr = tokens.pop();
+			if (curr.type === "open" && curr.content === target) {
+				//found the corresponding open tag
+				root.content.o = curr.content;
+				break ;
+			}
+			if (curr.type === "text") 
+				root.addChild(new pNode("text", curr.content));	
+			else if (curr.type === "close") {
+				if (recursive) {
+					tokens.push(curr);
+					root.addChild(makeTagNode(tokens));
+				} else {
+					root.addChild(new pNode("text", curr.content));
+				}
+			} else {
+				//must be an open node
+				if (recursive) {
+					//shouldn't have an unclosed open tag here
+					console.log("ERROR: unclosed tag spotted!\nThis tag will be regarded as a text.");
+					root.addChild(new pNode("text", token.content));
+				} else {
+					root.addChild(new pNode("text", token.content));
+				}
+			}
+		}
+		if (!root.content.o) {
+			//if this tag is unmatched, convert it to the text node
+			root.type = "text";
+			root.content = root.content.c;
+		}
+		return root;
+	}
+
+	isOpenTag (token) {
+		return this.openTags.exec(token).length == 1;
+	}
+
+	isCloseTag (token) {
+		return this.closeTags.exec(token).length == 1;
+	}
+
 }
 
 //a markdown language usually contains normal texts and tags. A tag maps a function from one markdown language to another.
@@ -114,10 +200,11 @@ class Parser {
 //usually, a parser is constructed with the original markdown text and a mapping pack along with mapping functions, and then it generates one regex that contains all the open tags and close tags.
 //after that, it will call the tokenizer that tokenizes the original text and then the parser will be initiated and uses a stack to parse and convert the original text to the desired markdown text.
 //
-//in the mapping pack, a open tag has three elements, e(end with), r(recursive folding(recursively convert inner nodes)), f(converting or mapping fucntion)
+//in the mapping pack, a open tag has three elements, s(start with), r(recursive folding(recursively convert inner nodes)), f(converting or mapping fucntion)
+//f should take 3 params open, close, content
 var eb2h = {
-	"[b]": {e: "[/b]", r: true, f: bold},
-	"[i]": {e: "[/i]", r: true, f: italic}, 
-	"[u]": {e: "[/u]", r: true, f: underline}, 
-	"[q]": {e: "[/q]", r: true, f:quote}
+	"[/b]": {s: "[b]", r: true, f: bold},
+	"[/i]": {s: "[i]", r: true, f: italic}, 
+	"[/u]": {s: "[u]", r: true, f: underline}, 
+	"[/q]": {s: "[q]", r: true, f:quote}
 };

@@ -47,59 +47,137 @@ class Node {
 	}
 }
 
-class ParserPack {
-	constructor (pre, text, suf) {
-		this.pre = pre;
-		this.text = text;
-		this.suf = suf;
-		this.children = [];
+//pNode is a parserNode that contains information of a certain node at the parsing tree
+class pNode {
+	constructor (type, content, children) {
+		this.children = (children != undefined ? new Stack(children) : new Stack());
+		this.type = type;
+		this.content = content;
 	}
 
-	
+	addChildren (children) {
+		if (!(children && typeof children === 'object' && children.constructor === Array)) {
+			console.error("children is not an array.\nThe parameter for addChildren of pNode should be an array of pNodes.");
+		}
+
+		for (let i = 0; i < children.length; i++) {
+			this.children.push(children[i]);
+		}
+	}
+
+	addChild (child) {
+		if (!(child && typeof child === "object" && child.constructor === pNode))
+			console.error("child is not an pNode object.\nThe parameter for addChild of pNode should be of pNode object.");
+		this.children.push(child);
+	}
+}
+
+//makeRegex makes the regex pack for the mPack
+function makeRegex (mPack) {
+	let regex = "";
+	let openTags = "";
+	let closeTags = "";
+	for (e in mPack) {
+		let s = mPack[e].s;
+		closeTags += (e + "|");
+		openTags += (s + "|");
+		regex += "(" + e + ")|" + "(" + s + ")|";
+	}
+	//to remove the last |s
+	closeTags = closeTags.substring(0, closeTags.length - 1);
+	openTags = openTags.substring(0, openTags.length - 1);
+	regex = regex.substring(0, regex.length - 1);	
+	return {o:new RegExp(openTags, "g"), c:new RegExp(closeTags, "g"), r:new RegExp(regex, "g")};
 }
 
 class Parser {
+	//TODO:
 	//pre_reg is the str, post_reg is the str, both is for the real regex
-	constructor (original_syntax, destination_syntax) {
-		this.reg = null;
-		this.ori_syntax = destination_syntax;
-		this.dest_syntax = original_syntax;
-		//"close":{"open":open, endPos:ep, function:func}
-		this.syn_pack = {};
-		this.textulizer = 
-	}
-	
-	//endPos = len(close tag len) for knowing where to stop for string slicesing
-	//for pre, it has to be a regex start with proper starting indicator s.a. [ 
-	//and end with an ending indicator s.a. ], same goes to close_syn
-	addPair (open_syn, close_syn, endPos, trans_func) {
-		this.reg = new RegExp(this.reg.source + "|(\\" + open_syn + ")" +  "|(\\" + close_syn + ")", "g");
-		syn_pack.close_syn = {open_syn, endPos:endPos, f:trans_func};
+	constructor (original, mPack) {
+		this.original = original;
+		this.mPack = mPack;
+		let regexs = makeRegex(mPack);
+		//build regex
+		this.openTags = regexs.o;
+		this.closeTags = regexs.c;
+		this.regex = regexs.r;
+		//tokenize
+		this.tokens = tokenize(this.original);
+		//stack algo
 	}
 
-	parse (o_text) {
-		let d_text = ""; //destination text
-		let stack = new Stack();
-		do {
-			let pos0 = o_text.search(this.reg);
-			o_text = o_text.substring(pos0 + 1);
-			let pos1 = o_text.search(this.reg);
-			if (pos0 == -1 || pos1 == -1)
+	//tokenize classifies tokens in the text by checking if a token is a tag or a pure text
+	//matches = str.match(regex); matches = ["xx", "x*", "x.x"]...
+	//matches would be an array of every open and close tags
+	tokenize () {
+		let tokens = new Stack();
+		let last = 0;
+		let index = -1
+		let text = "";
+		while ((match = this.regex.exec(this.original)) != null) {
+			index = match.index;
+			text = this.original.substring(last, index);
+			last = index + match.length;
+			if (text.length > 0)
+				tokens.push({type:"text", content:text});
+			tokens.push({type:(this.isOpenTag(match)?"open":"close"), content:match});
+		}
+		//in the tokens stack, the object is modeled as {type:"text""open"/"close", content:"content"}
+		return tokens;
+	}
+
+	parse (tokens) {
+		let root = new pNode("root", null);
+		while (!tokens.isEmpty()) {
+			let token = tokens.peek();
+			//check if curr is an ending tag
+			if (token.type === "close") {
+				this.makeTagNode(tokens);
+			} else if (token.type === "text") {
+				root.addChild(new pNode("text", token.content));
+			} else {
+				// shouldn't have an unclosed open tag here alone
+				console.log("ERROR: unclosed tag spotted!\nThis tag will be regarded as a text.");
+				root.addChild(new pNode("text", token.content));
+			}
+		}
+	}
+
+	//make a pNode on the closed tag(top of stack)
+	makeTagNode (tokens) {
+		let token = tokens.pop();
+		let recursive = this.mPack[token].r;
+		let target = this.mPack[token].s;
+		let pNode;
+		while (!tokens.isEmpty()) {
+			let curr = tokens.pop();
+			if (curr.type === "open" && curr.content === target)
+				//found the corresponding open tag
 				break ;
-	
-		} while (true);
-		return d-text;
+			
+		}
 	}
 
-	html_br (text) {
-		return text.replace(/\n/g, "<br>");
+	isOpenTag (token) {
+		return this.openTags.exec(token).length == 1;
 	}
 
-	keep (pre, text, suf) {
-		return text;
+	isCloseTag (token) {
+		return this.closeTags.exec(token).length == 1;
 	}
 
-	html_simple (pre, text, suf) {
-		return "<"+pre+">"+text+"</"+suf+">";
-	}
 }
+
+//a markdown language usually contains normal texts and tags. A tag maps a function from one markdown language to another.
+//a mapping pack describes how tags in a markdown language behaves and defines the mapping function of each tag. 
+//usually, a parser is constructed with the original markdown text and a mapping pack along with mapping functions, and then it generates one regex that contains all the open tags and close tags.
+//after that, it will call the tokenizer that tokenizes the original text and then the parser will be initiated and uses a stack to parse and convert the original text to the desired markdown text.
+//
+//in the mapping pack, a open tag has three elements, s(start with), r(recursive folding(recursively convert inner nodes)), f(converting or mapping fucntion)
+//f should take 3 params open, close, content
+var eb2h = {
+	"[/b]": {s: "[b]", r: true, f: bold},
+	"[/i]": {s: "[i]", r: true, f: italic}, 
+	"[/u]": {s: "[u]", r: true, f: underline}, 
+	"[/q]": {s: "[q]", r: true, f:quote}
+};
