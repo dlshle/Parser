@@ -52,7 +52,7 @@ class pNode {
 	constructor (type, content, children) {
 		this.children = (children != undefined ? new Stack(children) : new Stack());
 		this.type = type;
-		this.content = content;
+		this.content = content;//for tags, content={o:xx, c:xx}
 	}
 
 	addChildren (children) {
@@ -102,11 +102,12 @@ class Parser {
 		this.closeTags = regexs.c;
 		this.regex = regexs.r;
 		//tokenize
-		this.tokens = tokenize(this.original);
+		let tokens = this.tokenize(this.original);
 		//stack algo
+		this.tree = this.buildParsingTree(tokens);
 	}
 
-	//tokenize classifies tokens in the text by checking if a token is a tag or a pure text
+	//tokenize function classifies tokens in the text by checking if a token is a tag or a pure text
 	//matches = str.match(regex); matches = ["xx", "x*", "x.x"]...
 	//matches would be an array of every open and close tags
 	tokenize () {
@@ -126,13 +127,13 @@ class Parser {
 		return tokens;
 	}
 
-	parse (tokens) {
+	buildParsingTree (tokens) {
 		let root = new pNode("root", null);
 		while (!tokens.isEmpty()) {
 			let token = tokens.peek();
 			//check if curr is an ending tag
 			if (token.type === "close") {
-				this.makeTagNode(tokens);
+				root.addChild(this.makeTagNode(tokens));
 			} else if (token.type === "text") {
 				root.addChild(new pNode("text", token.content));
 			} else {
@@ -148,14 +149,40 @@ class Parser {
 		let token = tokens.pop();
 		let recursive = this.mPack[token].r;
 		let target = this.mPack[token].s;
-		let pNode;
+		let root = new pNode("tag", {o:null, c:token.content});
 		while (!tokens.isEmpty()) {
 			let curr = tokens.pop();
-			if (curr.type === "open" && curr.content === target)
+			if (curr.type === "open" && curr.content === target) {
 				//found the corresponding open tag
+				root.content.o = curr.content;
 				break ;
-			
+			}
+			if (curr.type === "text") 
+				root.addChild(new pNode("text", curr.content));	
+			else if (curr.type === "close") {
+				if (recursive) {
+					tokens.push(curr);
+					root.addChild(makeTagNode(tokens));
+				} else {
+					root.addChild(new pNode("text", curr.content));
+				}
+			} else {
+				//must be an open node
+				if (recursive) {
+					//shouldn't have an unclosed open tag here
+					console.log("ERROR: unclosed tag spotted!\nThis tag will be regarded as a text.");
+					root.addChild(new pNode("text", token.content));
+				} else {
+					root.addChild(new pNode("text", token.content));
+				}
+			}
 		}
+		if (!root.content.o) {
+			//if this tag is unmatched, convert it to the text node
+			root.type = "text";
+			root.content = root.content.c;
+		}
+		return root;
 	}
 
 	isOpenTag (token) {
@@ -166,6 +193,26 @@ class Parser {
 		return this.closeTags.exec(token).length == 1;
 	}
 
+}
+
+function simpleReplace(o, c, t) {
+	return o.substring(1, o.lastIndexOf("]")) + t + c.substring(1, c.lastIndexOf("]"));
+}
+
+function bold(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function italic(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function underline(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function quote(open, close, text) {
+	return simpleReplace(open, close, text);
 }
 
 //a markdown language usually contains normal texts and tags. A tag maps a function from one markdown language to another.

@@ -78,7 +78,9 @@ function makeRegex (mPack) {
 	let openTags = "";
 	let closeTags = "";
 	for (e in mPack) {
-		let s = mPack[e].s;
+		//push a "\" infromt of special chars
+		let s = generateRegStr(mPack[e].s);
+		e = generateRegStr(e);
 		closeTags += (e + "|");
 		openTags += (s + "|");
 		regex += "(" + e + ")|" + "(" + s + ")|";
@@ -89,6 +91,17 @@ function makeRegex (mPack) {
 	regex = regex.substring(0, regex.length - 1);	
 	return {o:new RegExp(openTags, "g"), c:new RegExp(closeTags, "g"), r:new RegExp(regex, "g")};
 }
+
+function generateRegStr (s) {
+	let result = "";
+	let special = "()[]{}\"\'\\/";
+	for (var i = 0; i < s.length; i++) {
+		if (special.includes(s.charAt(i)))
+			result += "\\" + s.charAt(i);
+		result += s.charAt(i);
+	}
+	return result;
+}	
 
 class Parser {
 	//TODO:
@@ -102,12 +115,12 @@ class Parser {
 		this.closeTags = regexs.c;
 		this.regex = regexs.r;
 		//tokenize
-		let tokens = tokenize(this.original);
+		let tokens = this.tokenize(this.original);
 		//stack algo
 		this.tree = this.buildParsingTree(tokens);
 	}
 
-	//tokenize classifies tokens in the text by checking if a token is a tag or a pure text
+	//tokenize function classifies tokens in the text by checking if a token is a tag or a pure text
 	//matches = str.match(regex); matches = ["xx", "x*", "x.x"]...
 	//matches would be an array of every open and close tags
 	tokenize () {
@@ -115,6 +128,7 @@ class Parser {
 		let last = 0;
 		let index = -1
 		let text = "";
+		let match = null;
 		while ((match = this.regex.exec(this.original)) != null) {
 			index = match.index;
 			text = this.original.substring(last, index);
@@ -193,6 +207,26 @@ class Parser {
 		return this.closeTags.exec(token).length == 1;
 	}
 
+}
+
+function simpleReplace(o, c, t) {
+	return o.substring(1, o.lastIndexOf("]")) + t + c.substring(1, c.lastIndexOf("]"));
+}
+
+function bold(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function italic(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function underline(open, close, text) {
+	return simpleReplace(open, close, text);
+}
+
+function quote(open, close, text) {
+	return simpleReplace(open, close, text);
 }
 
 //a markdown language usually contains normal texts and tags. A tag maps a function from one markdown language to another.
