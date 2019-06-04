@@ -36,7 +36,7 @@ class Stack {
 	}
 	
 	isEmpty() {
-		return size == 0;
+		return this.size == 0;
 	}
 }
 
@@ -81,8 +81,8 @@ function makeRegex (mPack) {
 		//push a "\" infromt of special chars
 		let s = generateRegStr(mPack[e].s);
 		e = generateRegStr(e);
-		closeTags += (e + "|");
-		openTags += (s + "|");
+		closeTags += ("(" + e + ")" + "|");
+		openTags += ("(" + s + ")" + "|");
 		regex += "(" + e + ")|" + "(" + s + ")|";
 	}
 	//to remove the last |s
@@ -98,7 +98,8 @@ function generateRegStr (s) {
 	for (var i = 0; i < s.length; i++) {
 		if (special.includes(s.charAt(i)))
 			result += "\\" + s.charAt(i);
-		result += s.charAt(i);
+		else
+			result += s.charAt(i);
 	}
 	return result;
 }	
@@ -118,6 +119,9 @@ class Parser {
 		let tokens = this.tokenize(this.original);
 		//stack algo
 		this.tree = this.buildParsingTree(tokens);
+		
+
+		
 	}
 
 	//tokenize function classifies tokens in the text by checking if a token is a tag or a pure text
@@ -132,10 +136,10 @@ class Parser {
 		while ((match = this.regex.exec(this.original)) != null) {
 			index = match.index;
 			text = this.original.substring(last, index);
-			last = index + match.length;
+			last = index + match[0].length;
 			if (text.length > 0)
 				tokens.push({type:"text", content:text});
-			tokens.push({type:(this.isOpenTag(match)?"open":"close"), content:match});
+			tokens.push({type:(this.isOpenTag(match[0])?"open":"close"), content:match[0]});
 		}
 		//in the tokens stack, the object is modeled as {type:"text""open"/"close", content:"content"}
 		return tokens;
@@ -150,19 +154,22 @@ class Parser {
 				root.addChild(this.makeTagNode(tokens));
 			} else if (token.type === "text") {
 				root.addChild(new pNode("text", token.content));
+				tokens.pop();
 			} else {
 				// shouldn't have an unclosed open tag here alone
 				console.log("ERROR: unclosed tag spotted!\nThis tag will be regarded as a text.");
 				root.addChild(new pNode("text", token.content));
+				tokens.pop();
 			}
 		}
+		return root;
 	}
 
 	//make a pNode on the closed tag(top of stack)
 	makeTagNode (tokens) {
 		let token = tokens.pop();
-		let recursive = this.mPack[token].r;
-		let target = this.mPack[token].s;
+		let recursive = this.mPack[token.content].r;
+		let target = this.mPack[token.content].s;
 		let root = new pNode("tag", {o:null, c:token.content});
 		while (!tokens.isEmpty()) {
 			let curr = tokens.pop();
@@ -176,7 +183,7 @@ class Parser {
 			else if (curr.type === "close") {
 				if (recursive) {
 					tokens.push(curr);
-					root.addChild(makeTagNode(tokens));
+					root.addChild(this.makeTagNode(tokens));
 				} else {
 					root.addChild(new pNode("text", curr.content));
 				}
@@ -200,11 +207,22 @@ class Parser {
 	}
 
 	isOpenTag (token) {
-		return this.openTags.exec(token).length == 1;
+		let result = this.openTags.exec(token) == null?false:true;
+		this.openTags.lastIndex = 0;
+		return result;
 	}
 
 	isCloseTag (token) {
-		return this.closeTags.exec(token).length == 1;
+		let result = this.closeTags.exec(token).length == null?false:true;
+		this.closeTags.lastIndex = 0;
+		return result;
+	}
+
+	expandTree (pNode root) {
+		console.log(root.content);
+		let cStack = root.children;
+		let head = cStack.head;
+		//TODO: this function expands the tree
 	}
 
 }
