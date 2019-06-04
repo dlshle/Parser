@@ -35,6 +35,16 @@ class Stack {
 		return temp.val;
 	}
 	
+	nodesAsArray() {
+		let temp = this.head;
+		result = [];
+		while (temp != null) {
+			result.push(temp.val);
+			temp = temp.next;
+		}
+		return result;
+	}
+
 	isEmpty() {
 		return this.size == 0;
 	}
@@ -70,6 +80,7 @@ class pNode {
 			console.error("child is not an pNode object.\nThe parameter for addChild of pNode should be of pNode object.");
 		this.children.push(child);
 	}
+
 }
 
 //makeRegex makes the regex pack for the mPack
@@ -119,9 +130,8 @@ class Parser {
 		let tokens = this.tokenize(this.original);
 		//stack algo
 		this.tree = this.buildParsingTree(tokens);
-		
-
-		
+		//try to expand the tree	
+		this.expandTree(this.tree);
 	}
 
 	//tokenize function classifies tokens in the text by checking if a token is a tag or a pure text
@@ -218,11 +228,12 @@ class Parser {
 		return result;
 	}
 
-	expandTree (pNode root) {
-		console.log(root.content);
-		let cStack = root.children;
-		let head = cStack.head;
-		//TODO: this function expands the tree
+	expandTree (root) {
+		console.log(root);
+		let layer = root.children.nodesAsArray();
+		for (let i = 0; i < layer.length; i++) {
+			this.expandTree(layer[i]);
+		}
 	}
 
 }
